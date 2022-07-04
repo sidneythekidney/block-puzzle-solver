@@ -11,6 +11,7 @@ WOOD_COLOR_LIGHT = (252, 235, 197)
 WOOD_COLOR_DARK = (129, 84, 56)
 WOOD_COLOR_LIGHT_HIGHLIGHTED = (202, 185, 147)
 WOOD_COLOR_DARK_HIGHLIGHTED = (179, 134, 106)
+YELLOW_HIGHLIGHT = (255, 255, 0)
 
 display_width = 1000
 display_height = 700
@@ -45,10 +46,14 @@ class Game():
         self.board_rows = board_rows
         self.board_columns = board_columns
 
+        self.tile_height = (game_board_height - (self.board_rows + 1) * tile_spacing) // self.board_rows
+        self.tile_width = self.tile_height
+
         self.game_score = 0
 
         self.game_board = board.Board(starting_board, board_rows, board_columns)
         self.piece_selector = piece_selector.PieceSelector()
+        self.tile_centers = []
 
     def play_game(self):
         pygame.init()
@@ -106,16 +111,9 @@ class Game():
             pygame.display.update()
 
     def main_game(self):
-        # Display the game board and score
-        game_board_rectangle = self.draw_rectangle(
-            game_board_width, 
-            game_board_height, 
-            (game_board_width // 2, game_board_height // 2), 
-            WOOD_COLOR_DARK, 
-            border_radius=5)
-
-        self.write_text("Score", 25, WOOD_COLOR_DARK, (display_width - score_panel_width // 2, self.display_height // 4))
-        self.write_text(str(self.game_score), 25, WOOD_COLOR_DARK, (display_width - score_panel_width // 2, self.display_height // 3))
+    
+        # Display main game elements
+        self.display_game_space()
 
         # Display quit button
         quit_button_rectangle = self.draw_rectangle(
@@ -126,49 +124,14 @@ class Game():
             border_radius=5)
         self.write_text("Main Menu", 25, WOOD_COLOR_LIGHT, (display_width - score_panel_width // 2, display_height - 100))
 
-        piece_display_rectangle = self.draw_rectangle(
-            piece_bar_width,
-            piece_bar_height,
-            (piece_bar_width // 2, self.display_height - piece_bar_height // 2),
-            WOOD_COLOR_DARK_HIGHLIGHTED,
-            border_radius=5
-        )
-
-        # Draw squares to display random pieces
-        for i in range(num_random_pieces):
-            left =  i * random_piece_width + (i + 1) * random_piece_space + random_piece_width // 2
-            top = self.display_height - piece_bar_height // 2
-            display_individual_piece_rectangle = self.draw_rectangle(
-                random_piece_width,
-                random_piece_height,
-                (left, top),
-                BLACK,
-                edge_width=1,
-                border_radius=5
-            )
-
-        self.display_all_tiles()
-        self.display_occupied_tiles()
-        
         game_over = False
         while not game_over:
             # Get and display random pieces
             random_selected_pieces = self.piece_selector.get_random_pieces(num_random_pieces)
             self.display_random_pieces(random_selected_pieces)
             pygame.display.update()
-            time.sleep(2)
 
-            # Cover the pieces after 2 seconds
-            for i in range(num_random_pieces):
-                left =  i * random_piece_width + (i + 1) * random_piece_space + random_piece_width // 2
-                top = self.display_height - piece_bar_height // 2
-                display_individual_piece_rectangle = self.draw_rectangle(
-                    random_piece_width - 2,
-                    random_piece_height - 2,
-                    (left, top),
-                    WOOD_COLOR_DARK_HIGHLIGHTED,
-                    border_radius=5
-                )
+            self.get_cpu_move_and_update_board(random_selected_pieces)
 
             for event in pygame.event.get():
                 if event.type == pygame.MOUSEBUTTONDOWN:
@@ -197,31 +160,130 @@ class Game():
                     exit()
             pygame.display.update()
 
+    def get_cpu_move_and_update_board(self, random_selected_pieces):
+        for _ in range(num_random_pieces):
+            move_selected = False
+            while not move_selected:
+                # Get random piece selection from user
+                move_random_piece = input("Select which piece to move (l, c, r): ")
+                random_piece_num = -1
+                if (move_random_piece == "l"):
+                    random_piece_num = 0
+                elif (move_random_piece == "c"):
+                    random_piece_num = 1
+                else:
+                    random_piece_num = 2
+
+                print("piece squares: ")
+                print(random_selected_pieces[random_piece_num].piece_squares)
+
+                # Get row and column from the user
+                row = int(input("Enter row number between 0 and " + str(board_rows-1) + " inclusive: "))
+                column = int(input("Enter column number between 0 and " + str(board_columns-1) + " inclusive: "))
+
+                # Display random piece to board
+                if self.game_board.can_place_piece(random_selected_pieces[random_piece_num], self.game_board.get_square_from_row_and_column(row ,column)):
+                    deleted_rows, deleted_columns = self.game_board.place_piece(random_selected_pieces[random_piece_num], 
+                        self.game_board.get_square_from_row_and_column(row, column))
+                    
+                    # Highlight moved piece squares
+                    self.place_block_animation(row, column, random_selected_pieces[random_piece_num])
+
+                    # Cover up placed piece
+                    placed_piece_left =  random_piece_num * random_piece_width + (random_piece_num + 1) * random_piece_space + random_piece_width // 2
+                    placed_piece_top = self.display_height - piece_bar_height // 2
+                    display_individual_piece_rectangle = self.draw_rectangle(
+                        random_piece_width - 2,
+                        random_piece_height - 2,
+                        (placed_piece_left, placed_piece_top),
+                        WOOD_COLOR_DARK_HIGHLIGHTED,
+                        border_radius=5
+                    )
+                    pygame.display.update()
+
+                    # Highlight the rows and columns to delete
+                    if len(deleted_rows) + len(deleted_columns) > 0:
+                        self.delete_rows_and_columns_animation(deleted_rows, deleted_columns)
+
+                    # Update the game score
+                    self.update_score(len(random_selected_pieces[random_piece_num].piece_squares), len(deleted_rows), len(deleted_columns))
+
+                    move_selected = True
+                else:
+                    print("Error cannot place piece here! Try Again....")
+
+    def display_game_space(self):
+        # Display the game board and score
+        game_board_rectangle = self.draw_rectangle(
+            game_board_width, 
+            game_board_height, 
+            (game_board_width // 2, game_board_height // 2), 
+            WOOD_COLOR_DARK, 
+            border_radius=5)
+
+        self.write_text("Score", 25, WOOD_COLOR_DARK, (display_width - score_panel_width // 2, self.display_height // 4))
+        self.write_text(str(self.game_score), 25, WOOD_COLOR_DARK, (display_width - score_panel_width // 2, self.display_height // 3))
+
+        piece_display_rectangle = self.draw_rectangle(
+            piece_bar_width,
+            piece_bar_height,
+            (piece_bar_width // 2, self.display_height - piece_bar_height // 2),
+            WOOD_COLOR_DARK_HIGHLIGHTED,
+            border_radius=5
+        )
+
+        # Draw squares to display random pieces
+        for i in range(num_random_pieces):
+            left =  i * random_piece_width + (i + 1) * random_piece_space + random_piece_width // 2
+            top = self.display_height - piece_bar_height // 2
+            _ = self.draw_rectangle(
+                random_piece_width,
+                random_piece_height,
+                (left, top),
+                BLACK,
+                edge_width=1,
+                border_radius=5
+            )
+
+        self.display_all_tiles()
+        self.display_occupied_tiles()
+
+    def update_score(self, piece_size, num_rows_deleted, num_columns_deleted):
+        # Update game score based on parameters
+        self.game_score += piece_size + self.board_columns * num_rows_deleted + self.board_rows * num_columns_deleted
+
+        self.draw_rectangle(
+            display_width - game_board_width,
+            30,
+            (display_width - score_panel_width // 2, self.display_height // 3),
+            WOOD_COLOR_LIGHT,
+        )
+
+
+        # Display the updated score
+        self.write_text(str(self.game_score), 25, WOOD_COLOR_DARK, (display_width - score_panel_width // 2, self.display_height // 3))
+        pygame.display.update()
+
     def display_all_tiles(self):
-        # Calculate width and height for tiles
-        # tile_width = (game_board_width - (self.board_columns + 1) * tile_spacing) // self.board_columns
-        tile_height = (game_board_height - (self.board_rows + 1) * tile_spacing) // self.board_rows
-        tile_width = tile_height
-        tile_left_offset = (game_board_width - tile_width * self.board_columns - tile_spacing * (self.board_columns - 1)) // 2
+        # Calculate offset for tiles
+        tile_left_offset = (game_board_width - self.tile_width * self.board_columns - tile_spacing * (self.board_columns - 1)) // 2
         for row in range(0, self.board_rows):
             for column in range(0, self.board_columns):
                 # Calculate center
-                tile_top = (row + 1) * tile_spacing + row * tile_height + tile_height // 2
-                tile_left = tile_left_offset + (column + 1) * tile_spacing + column * tile_width + tile_width // 2
-                tile = self.draw_rectangle(tile_width, tile_height, (tile_left, tile_top), BLACK, edge_width=tile_edge, border_radius=5)
+                tile_top = (row + 1) * tile_spacing + row * self.tile_height + self.tile_height // 2
+                tile_left = tile_left_offset + (column + 1) * tile_spacing + column * self.tile_width + self.tile_width // 2
+                tile = self.draw_rectangle(self.tile_width, self.tile_height, (tile_left, tile_top), BLACK, edge_width=tile_edge, border_radius=5)
+                # Add to tile centers
+                self.tile_centers.append((tile_left, tile_top))
 
     def display_occupied_tiles(self):
         # tile_width = (game_board_width - (self.board_columns + 1) * tile_spacing) // self.board_columns
-        tile_height = (game_board_height - (self.board_rows + 1) * tile_spacing) // self.board_rows
-        tile_width = tile_height
-        tile_left_offset = (game_board_width - tile_width * self.board_columns - tile_spacing * (self.board_columns - 1)) // 2
         for row in range(0, self.board_rows):
             for column in range(0, self.board_columns):
                 # Calculate center
                 if (self.game_board.board[self.game_board.get_square_from_row_and_column(row, column)] == self.game_board.OCCUPIED_SQUARE):
-                    tile_top = (row + 1) * tile_spacing + row * tile_height + tile_height // 2
-                    tile_left = tile_left_offset + (column + 1) * tile_spacing + column * tile_width + tile_width // 2
-                    tile = self.draw_rectangle(tile_width - 2 * tile_edge, tile_height - 2 * tile_edge, (tile_left, tile_top), WOOD_COLOR_LIGHT, border_radius=5)
+                    tile_center = self.tile_centers[self.game_board.get_square_from_row_and_column(row, column)]
+                    _ = self.draw_rectangle(self.tile_width - 2 * tile_edge, self.tile_height - 2 * tile_edge, tile_center, WOOD_COLOR_LIGHT, border_radius=5)
 
     def display_random_pieces(self, random_pieces):
         for i, piece in enumerate(random_pieces):
@@ -259,6 +321,52 @@ class Game():
                     border_radius=5
                 )
 
+    def place_block_animation(self, row, column, piece):
+        # Get centers for relevant piece
+        piece_square_centers = []
+        for square in piece.piece_squares:
+            piece_square_centers.append(self.tile_centers[self.game_board.get_square_from_row_and_column(row + square[0], column + square[1])])
+
+        # Add hightlighted blocks to game surface
+        for center in piece_square_centers:
+            _ = self.draw_rectangle(self.tile_width - 2 * tile_edge, self.tile_height - 2 * tile_edge, center, YELLOW_HIGHLIGHT, border_radius=5)
+        
+        pygame.event.pump()
+        pygame.display.update()
+        pygame.time.delay(1000)
+
+        # Add piece blocks to the surface
+        for center in piece_square_centers:
+            _ = self.draw_rectangle(self.tile_width - 2 * tile_edge, self.tile_height - 2 * tile_edge, center, WOOD_COLOR_LIGHT, border_radius=5)
+
+        pygame.event.pump()
+        pygame.display.update()
+
+    def delete_rows_and_columns_animation(self, deleted_rows, deleted_columns):
+        piece_square_centers = []
+        # Get the centers of all rows to delete
+        for deleted_row in deleted_rows:
+            for column in range(self.board_columns):
+                piece_square_centers.append(self.tile_centers[self.game_board.get_square_from_row_and_column(deleted_row, column)])
+        for deleted_column in deleted_columns:
+            for row in range(self.board_rows):
+                piece_square_centers.append(self.tile_centers[self.game_board.get_square_from_row_and_column(row, deleted_column)])
+
+        # Highlight all deleted squares
+        for center in piece_square_centers:
+            _ = self.draw_rectangle(self.tile_width - 2 * tile_edge, self.tile_height - 2 * tile_edge, center, GREEN, border_radius=5)
+        
+        pygame.event.pump()
+        pygame.display.update()
+        pygame.time.delay(1000)
+
+        # Show empty blocks fro deleted rows and columns
+        for center in piece_square_centers:
+            _ = self.draw_rectangle(self.tile_width - 2 * tile_edge, self.tile_height - 2 * tile_edge, center, WOOD_COLOR_DARK, border_radius=5)
+
+        pygame.event.pump()
+        pygame.display.update()
+
     def write_text(self, text, size, color, center_pos):
         font = pygame.font.Font('freesansbold.ttf', size)
         text = font.render(text, True, color)
@@ -285,5 +393,18 @@ start_board = [
     '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
 ]
 
-game = Game(display_width, display_height, board_rows, board_columns, start_board)
+test_start_board = [
+    '.', '.', '*', '*', '*', '*', '*', '*', '*', '*',
+    '.', '.', '*', '*', '*', '*', '*', '*', '*', '*',
+    '*', '*', '.', '.', '.', '.', '.', '.', '.', '.',
+    '*', '*', '.', '.', '.', '.', '.', '.', '.', '.',
+    '*', '*', '.', '.', '.', '.', '.', '.', '.', '.',
+    '*', '*', '.', '.', '.', '.', '.', '.', '.', '.',
+    '*', '*', '.', '.', '.', '.', '.', '.', '.', '.',
+    '*', '*', '.', '.', '.', '.', '.', '.', '.', '.',
+    '*', '*', '.', '.', '.', '.', '.', '.', '.', '.',
+    '*', '*', '.', '.', '.', '.', '.', '.', '.', '.',
+]
+
+game = Game(display_width, display_height, board_rows, board_columns, test_start_board)
 game.play_game()
