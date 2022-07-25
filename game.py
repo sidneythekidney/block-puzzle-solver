@@ -3,6 +3,8 @@ import pygame
 import board
 import piece_selector
 import time
+import itertools
+
 # Define global colors
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -39,6 +41,12 @@ tile_edge = 2
 
 num_random_pieces = 3
 
+def gen_perms(perm_length):
+    perm_list = []
+    for i in range(perm_length):
+        perm_list.append(i)
+    return list(itertools.permutations(perm_list))
+
 class Game():
     def __init__(self, display_width, display_height, board_rows, board_columns, starting_board):
         self.display_width = display_width
@@ -54,6 +62,9 @@ class Game():
         self.game_board = board.Board(starting_board, board_rows, board_columns)
         self.piece_selector = piece_selector.PieceSelector()
         self.tile_centers = []
+
+        # Accepts a list of randomly selected pieces and returns the optimal piece placements
+        self.perms = gen_perms(num_random_pieces)
 
     def play_game(self):
         pygame.init()
@@ -211,6 +222,29 @@ class Game():
                     move_selected = True
                 else:
                     print("Error cannot place piece here! Try Again....")
+
+    def determine_optimal_piece_placement(self, random_selected_pieces):
+        # Want to minimize cost to find the bets placement
+        min_cost = float('inf')
+
+        for perm in self.perms:
+            for piece_idx, piece in enumerate(perm):
+                for i in range(self.board_rows):
+                    for j in range(self.columns):
+                        # Attempt to place piece
+                        if self.game_board.can_place_piece(random_selected_pieces[piece], self.game_board.get_square_from_row_and_column(i, j)):
+                            # Update board as necessary
+                            deleted_rows, deleted_columns = self.game_board.place_piece(
+                                random_selected_pieces[piece], self.game_board.get_square_from_row_and_column(i, j))
+                            
+                            self.game_board.delete_rows_and_columns(deleted_rows, deleted_columns)
+
+                            # If this is the last piece to place update the bets move as necessary
+                            if piece_idx == self.num_random_pieces - 1:
+                                board_score = self.game_board.calculate_board_score()
+                                if (board_score < min_cost):
+                                    min_cost = board_score
+
 
     def display_game_space(self):
         # Display the game board and score
