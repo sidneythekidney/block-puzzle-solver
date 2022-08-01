@@ -69,7 +69,6 @@ class Board:
 
     def unplace_piece(self, piece, square, deleted_rows, deleted_columns):
         self.restore_rows_and_columns(deleted_rows, deleted_columns)
-
         square_row, square_column = self.get_row_and_column_from_square(square)
 
         for piece_square in piece.piece_squares:
@@ -87,45 +86,45 @@ class Board:
         for row in deleted_rows:
             for occupied_square in range(row * self.board_columns, (row + 1) * self.board_columns):
                 self.board[occupied_square] = self.EMPTY_SQUARE
-            # Update row counts
+            # Update row and column counts
             self.row_occupied_counts[row] = 0
-            for row_number in range(self.board_rows):
-                if row_number not in deleted_rows:
-                    self.row_occupied_counts[row_number] -= 1
+            for column_number in range(self.board_columns):
+                if column_number not in deleted_columns:
+                    self.column_occupied_counts[column_number] -= 1
 
         # Delete full columns
         for column in deleted_columns:
             for occupied_square in range(column, self.board_rows * self.board_columns, self.board_columns):
                 self.board[occupied_square] = self.EMPTY_SQUARE
-            # Update column counts
+            # Update row and column counts
             self.column_occupied_counts[column] = 0
-            for column_number in range(self.board_columns):
-                if column_number not in deleted_columns:
-                    self.column_occupied_counts[column_number] -= 1
+            for row_number in range(self.board_rows):
+                if row_number not in deleted_rows:
+                    self.row_occupied_counts[row_number] -= 1
 
     def restore_rows_and_columns(self, restored_rows, restored_columns):
         # Delete full rows
         for row in restored_rows:
             for occupied_square in range(row * self.board_columns, (row + 1) * self.board_columns):
                 self.board[occupied_square] = self.OCCUPIED_SQUARE
-            # Update row counts
+            # Update row and column counts
             self.row_occupied_counts[row] = 10
-            for row_number in range(self.board_rows):
-                if row_number not in restored_rows:
-                    self.row_occupied_counts[row_number] += 1
+            for column_number in range(self.board_columns):
+                if column_number not in restored_columns:
+                    self.column_occupied_counts[column_number] += 1
 
         # Delete full columns
         for column in restored_columns:
             for occupied_square in range(column, self.board_rows * self.board_columns, self.board_columns):
                 self.board[occupied_square] = self.OCCUPIED_SQUARE
-            # Update column counts
+            # Update row and column counts
             self.column_occupied_counts[column] = 10
-            for column_number in range(self.board_columns):
-                if column_number not in restored_columns:
-                    self.column_occupied_counts[column_number] += 1
+            for row_number in range(self.board_rows):
+                if row_number not in restored_rows:
+                    self.row_occupied_counts[row_number] += 1
 
     def calculate_board_score(self):
-        return self.calculate_num_squares * self.weights["num_squares_weight"] + self.calculate_num_corners * self.weights["num_corners_weight"]
+        return self.calculate_num_squares() * self.weights["num_squares_weight"] + self.calculate_num_corners() * self.weights["num_corners_weight"]
 
     def calculate_num_squares(self):
         num_squares = 0

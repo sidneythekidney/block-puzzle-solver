@@ -1,8 +1,7 @@
 from random import random
-import pygame
+# import pygame
 import board
 import piece_selector
-import time
 import itertools
 
 # Define global colors
@@ -64,7 +63,10 @@ class Game():
         self.tile_centers = []
 
         # Accepts a list of randomly selected pieces and returns the optimal piece placements
-        self.perms = gen_perms(num_random_pieces)
+        self.perms = []
+        for perm in gen_perms(num_random_pieces):
+            self.perms.append(list(perm))
+        print(self.perms)
 
     def play_game(self):
         pygame.init()
@@ -120,6 +122,32 @@ class Game():
                     pygame.quit()
                     exit()
             pygame.display.update()
+
+    def play_game_no_gui(self, num_games):
+        for _ in range(num_games):
+            game_over = False
+
+            while not game_over:
+                random_selected_pieces = self.piece_selector.get_random_pieces(num_random_pieces)
+                print("Thinking of best moves...")
+                optimal_perm, optimal_piece_placement = self.determine_optimal_piece_placement_helper(random_selected_pieces)
+                if optimal_perm != None and optimal_piece_placement != None:
+                    print("Best score: " + str(self.min_cost))
+                    print("Optimal perm: " + str(optimal_perm))
+                    for idx, perm_entry in enumerate(optimal_perm):
+                        print("placing piece on square: " + str(random_selected_pieces[perm_entry]))
+                        print("piece rows")
+                        print(random_selected_pieces[perm_entry].max_rows)
+                        print("piece cols")
+                        print(random_selected_pieces[perm_entry].max_columns)
+                        deleted_rows, deleted_columns = self.game_board.place_piece(random_selected_pieces[perm_entry], optimal_piece_placement[idx])
+                        self.update_score_no_gui(len(random_selected_pieces[perm_entry].piece_squares), len(deleted_rows), len(deleted_columns))
+                        print("Score: " + str(self.game_score))
+                    self.game_board.print_board()
+                else:
+                    game_over = True
+
+            print("Final score: " + str(self.game_score))
 
     def main_game(self):
     
@@ -223,28 +251,33 @@ class Game():
                 else:
                     print("Error cannot place piece here! Try Again....")
 
-    def determine_optimal_piece_placement(self, random_selected_pieces):
-        # Want to minimize cost to find the bets placement
-        min_cost = float('inf')
-
+    def determine_optimal_piece_placement_helper(self, random_selected_pieces):
+        self.min_cost = float('inf')
+        self.optimal_perm = None
+        self.optimal_piece_placement = None
         for perm in self.perms:
-            for piece_idx, piece in enumerate(perm):
-                for i in range(self.board_rows):
-                    for j in range(self.columns):
-                        # Attempt to place piece
-                        if self.game_board.can_place_piece(random_selected_pieces[piece], self.game_board.get_square_from_row_and_column(i, j)):
-                            # Update board as necessary
-                            deleted_rows, deleted_columns = self.game_board.place_piece(
-                                random_selected_pieces[piece], self.game_board.get_square_from_row_and_column(i, j))
-                            
-                            self.game_board.delete_rows_and_columns(deleted_rows, deleted_columns)
+            print("perm: " + str(perm))
+            self.determine_optimal_piece_placement(random_selected_pieces, [], perm, perm)
 
-                            # If this is the last piece to place update the bets move as necessary
-                            if piece_idx == self.num_random_pieces - 1:
-                                board_score = self.game_board.calculate_board_score()
-                                if (board_score < min_cost):
-                                    min_cost = board_score
+        return self.optimal_perm, self.optimal_piece_placement
 
+    def determine_optimal_piece_placement(self, random_selected_pieces, piece_placements, perm, original_perm):
+        if len(perm) == 0:
+            # Calculate board score
+            board_score = self.game_board.calculate_board_score()
+            if board_score < self.min_cost:
+                self.min_cost = board_score
+                self.optimal_piece_placement = piece_placements
+                self.optimal_perm = original_perm
+            return
+
+        for i in range(self.game_board.board_rows * self.game_board.board_columns):
+            if self.game_board.can_place_piece(random_selected_pieces[perm[0]], i):
+                deleted_rows, deleted_columns = self.game_board.place_piece(random_selected_pieces[perm[0]], i)
+
+                self.determine_optimal_piece_placement(random_selected_pieces, piece_placements + [i], perm[1:], original_perm)
+                
+                self.game_board.unplace_piece(random_selected_pieces[perm[0]], i, deleted_rows, deleted_columns)
 
     def display_game_space(self):
         # Display the game board and score
@@ -297,6 +330,10 @@ class Game():
         # Display the updated score
         self.write_text(str(self.game_score), 25, WOOD_COLOR_DARK, (display_width - score_panel_width // 2, self.display_height // 3))
         pygame.display.update()
+
+    def update_score_no_gui(self, piece_size, num_rows_deleted, num_columns_deleted):
+        # Update game score based on parameters
+        self.game_score += piece_size + self.board_columns * num_rows_deleted + self.board_rows * num_columns_deleted
 
     def display_all_tiles(self):
         # Calculate offset for tiles
@@ -415,8 +452,8 @@ class Game():
         return rectangle
 
 start_board = [
-    '*', '*', '.', '.', '.', '.', '.', '.', '.', '.',
-    '*', '*', '.', '.', '.', '.', '.', '.', '.', '.',
+    '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
+    '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
     '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
     '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
     '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
@@ -440,5 +477,6 @@ test_start_board = [
     '*', '*', '.', '.', '.', '.', '.', '.', '.', '.',
 ]
 
-game = Game(display_width, display_height, board_rows, board_columns, test_start_board)
-game.play_game()
+game = Game(display_width, display_height, board_rows, board_columns, start_board)
+# game.play_game()
+game.play_game_no_gui(1)
