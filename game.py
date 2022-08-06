@@ -1,5 +1,5 @@
 from random import random
-# import pygame
+import pygame
 import board
 import piece_selector
 import itertools
@@ -135,11 +135,6 @@ class Game():
                     print("Best score: " + str(self.min_cost))
                     print("Optimal perm: " + str(optimal_perm))
                     for idx, perm_entry in enumerate(optimal_perm):
-                        print("placing piece on square: " + str(random_selected_pieces[perm_entry]))
-                        print("piece rows")
-                        print(random_selected_pieces[perm_entry].max_rows)
-                        print("piece cols")
-                        print(random_selected_pieces[perm_entry].max_columns)
                         deleted_rows, deleted_columns = self.game_board.place_piece(random_selected_pieces[perm_entry], optimal_piece_placement[idx])
                         self.update_score_no_gui(len(random_selected_pieces[perm_entry].piece_squares), len(deleted_rows), len(deleted_columns))
                         print("Score: " + str(self.game_score))
@@ -200,56 +195,52 @@ class Game():
             pygame.display.update()
 
     def get_cpu_move_and_update_board(self, random_selected_pieces):
-        for _ in range(num_random_pieces):
-            move_selected = False
-            while not move_selected:
-                # Get random piece selection from user
-                move_random_piece = input("Select which piece to move (l, c, r): ")
-                random_piece_num = -1
-                if (move_random_piece == "l"):
-                    random_piece_num = 0
-                elif (move_random_piece == "c"):
-                    random_piece_num = 1
-                else:
-                    random_piece_num = 2
+        # Determine optimal piece placements
+        optimal_perm, optimal_piece_placement = self.determine_optimal_piece_placement_helper(random_selected_pieces)
 
-                print("piece squares: ")
-                print(random_selected_pieces[random_piece_num].piece_squares)
+        if optimal_perm == None:
+            print("Game over!")
+            exit()
 
-                # Get row and column from the user
-                row = int(input("Enter row number between 0 and " + str(board_rows-1) + " inclusive: "))
-                column = int(input("Enter column number between 0 and " + str(board_columns-1) + " inclusive: "))
+        print("Determined optimal piece placement, attempting to place pieces...")
 
-                # Display random piece to board
-                if self.game_board.can_place_piece(random_selected_pieces[random_piece_num], self.game_board.get_square_from_row_and_column(row ,column)):
-                    deleted_rows, deleted_columns = self.game_board.place_piece(random_selected_pieces[random_piece_num], 
-                        self.game_board.get_square_from_row_and_column(row, column))
-                    
-                    # Highlight moved piece squares
-                    self.place_block_animation(row, column, random_selected_pieces[random_piece_num])
+        for move_idx in range(len(optimal_perm)):
+            # Get random piece selection from user
+            random_piece_num = optimal_perm[move_idx]
 
-                    # Cover up placed piece
-                    placed_piece_left =  random_piece_num * random_piece_width + (random_piece_num + 1) * random_piece_space + random_piece_width // 2
-                    placed_piece_top = self.display_height - piece_bar_height // 2
-                    display_individual_piece_rectangle = self.draw_rectangle(
-                        random_piece_width - 2,
-                        random_piece_height - 2,
-                        (placed_piece_left, placed_piece_top),
-                        WOOD_COLOR_DARK_HIGHLIGHTED,
-                        border_radius=5
-                    )
-                    pygame.display.update()
+            # Get square from optimal piece placements
+            optimal_placement = optimal_piece_placement[move_idx]
+            optimal_row, optimal_column = self.game_board.get_row_and_column_from_square(optimal_placement)
 
-                    # Highlight the rows and columns to delete
-                    if len(deleted_rows) + len(deleted_columns) > 0:
-                        self.delete_rows_and_columns_animation(deleted_rows, deleted_columns)
+            # Display random piece to board
+            if self.game_board.can_place_piece(random_selected_pieces[random_piece_num], optimal_placement):
+                deleted_rows, deleted_columns = self.game_board.place_piece(random_selected_pieces[random_piece_num], 
+                    optimal_placement)
+                
+                # Highlight moved piece squares
+                self.place_block_animation(optimal_row, optimal_column, random_selected_pieces[random_piece_num])
 
-                    # Update the game score
-                    self.update_score(len(random_selected_pieces[random_piece_num].piece_squares), len(deleted_rows), len(deleted_columns))
+                # Cover up placed piece
+                placed_piece_left =  random_piece_num * random_piece_width + (random_piece_num + 1) * random_piece_space + random_piece_width // 2
+                placed_piece_top = self.display_height - piece_bar_height // 2
+                display_individual_piece_rectangle = self.draw_rectangle(
+                    random_piece_width - 2,
+                    random_piece_height - 2,
+                    (placed_piece_left, placed_piece_top),
+                    WOOD_COLOR_DARK_HIGHLIGHTED,
+                    border_radius=5
+                )
+                pygame.display.update()
 
-                    move_selected = True
-                else:
-                    print("Error cannot place piece here! Try Again....")
+                # Highlight the rows and columns to delete
+                if len(deleted_rows) + len(deleted_columns) > 0:
+                    self.delete_rows_and_columns_animation(deleted_rows, deleted_columns)
+
+                # Update the game score
+                self.update_score(len(random_selected_pieces[random_piece_num].piece_squares), len(deleted_rows), len(deleted_columns))
+            else:
+                print("Error cannot place piece here!")
+                exit(1)
 
     def determine_optimal_piece_placement_helper(self, random_selected_pieces):
         self.min_cost = float('inf')
@@ -478,5 +469,5 @@ test_start_board = [
 ]
 
 game = Game(display_width, display_height, board_rows, board_columns, start_board)
-# game.play_game()
-game.play_game_no_gui(1)
+game.play_game()
+# game.play_game_no_gui(1)
