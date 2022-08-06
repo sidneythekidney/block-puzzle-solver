@@ -1,5 +1,5 @@
 from random import random
-# import pygame
+import pygame
 import board
 import piece_selector
 import itertools
@@ -478,5 +478,5 @@ test_start_board = [
 ]
 
 game = Game(display_width, display_height, board_rows, board_columns, start_board)
-# game.play_game()
-game.play_game_no_gui(1)
+game.play_game()
+# game.play_game_no_gui(1)
