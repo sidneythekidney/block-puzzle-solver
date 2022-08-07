@@ -1,6 +1,7 @@
 import piece
 import random
 from datetime import datetime
+import time
 random.seed(datetime.now())
 
 # Construct all pieces for the puzzle
@@ -91,3 +92,25 @@ class PieceSelector():
         for i in range(number_of_random_pieces):
             selected_pieces.append(self.pieces[random.randint(0, len(self.pieces) - 1) % len(self.pieces)])
         return selected_pieces
+
+    def get_user_pieces(self):
+        not_selected = True
+        selected_pieces = []
+        while not_selected:
+            self.print_all_pieces()
+            selections_str = input("Enter the corresponding number of the pieces that you see on the app separated by spaces (ex: 1 5 3): ")
+            try:
+                selected_pieces = []
+                selections = selections_str.split(' ')
+                for selection in selections:
+                    selected_pieces.append(self.pieces[int(selection) - 1])
+                not_selected = False
+            except:
+                print("Pieces input incorrectly or you have the wrong piece numbers, try again")
+                time.sleep(0.5)
+        return selected_pieces
+
+    def print_all_pieces(self):
+        for idx, piece in enumerate(self.pieces):
+            print("Piece #" + str(idx + 1) + ": ")
+            piece.print_piece()

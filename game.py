@@ -1,3 +1,5 @@
+from logging import exception
+from operator import truediv
 from random import random
 import pygame
 import board
@@ -161,7 +163,8 @@ class Game():
         game_over = False
         while not game_over:
             # Get and display random pieces
-            random_selected_pieces = self.piece_selector.get_random_pieces(num_random_pieces)
+            pygame.event.pump()
+            random_selected_pieces = self.piece_selector.get_user_pieces()
             self.display_random_pieces(random_selected_pieces)
             pygame.display.update()
 
@@ -223,7 +226,7 @@ class Game():
                 # Cover up placed piece
                 placed_piece_left =  random_piece_num * random_piece_width + (random_piece_num + 1) * random_piece_space + random_piece_width // 2
                 placed_piece_top = self.display_height - piece_bar_height // 2
-                display_individual_piece_rectangle = self.draw_rectangle(
+                _ = self.draw_rectangle(
                     random_piece_width - 2,
                     random_piece_height - 2,
                     (placed_piece_left, placed_piece_top),
@@ -395,6 +398,16 @@ class Game():
         
         pygame.event.pump()
         pygame.display.update()
+
+        print("Press space bar to continue with pygame window selected...")
+        # Wait until space bar is pressed to let user place piece on app
+        spacebar_not_pressed = True
+        while spacebar_not_pressed:
+            for event in pygame.event.get():
+                if event.type == pygame.KEYUP:
+                    if event.key == pygame.K_SPACE:
+                        spacebar_not_pressed = False
+
         pygame.time.delay(1000)
 
         # Add piece blocks to the surface
@@ -443,16 +456,16 @@ class Game():
         return rectangle
 
 start_board = [
+    '.', '*', '.', '.', '.', '.', '.', '.', '.', '.',
     '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
+    '.', '*', '.', '.', '*', '*', '*', '.', '*', '*',
+    '*', '*', '*', '.', '.', '*', '*', '.', '*', '*',
+    '*', '.', '.', '.', '*', '*', '.', '.', '*', '*',
+    '*', '.', '.', '.', '*', '*', '.', '.', '*', '.',
     '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
-    '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
-    '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
-    '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
-    '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
-    '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
-    '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
-    '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
-    '.', '.', '.', '.', '.', '.', '.', '.', '.', '.',
+    '*', '*', '*', '*', '.', '.', '.', '.', '.', '.',
+    '*', '*', '*', '.', '.', '.', '.', '.', '.', '.',
+    '.', '*', '.', '.', '.', '.', '.', '.', '.', '.',
 ]
 
 test_start_board = [
